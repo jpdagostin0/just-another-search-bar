@@ -203,13 +203,22 @@ class PanelSearchBar extends PanelMenu.Button {
             // clear first so popModal() never restores focus into the entry
             global.stage.set_key_focus(null);
             const grab = Main.pushModal(this, { actionMode: Shell.ActionMode.POPUP });
-            if ((grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
+            try {
+                // Clutter.Grab.get_seat_state() was removed in GNOME 50
+                if (typeof grab.get_seat_state === 'function' &&
+                    (grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
+                    Main.popModal(grab);
+                    return;
+                }
+                this._grab = grab;
+                this.add_style_pseudo_class('active');
+                this.entry.grab_key_focus();
+            } catch (e) {
+                // never leave the shell stuck behind a dangling modal grab
+                this._grab = null;
                 Main.popModal(grab);
-                return;
+                logError(e, '[ Search Bar ] activate failed');
             }
-            this._grab = grab;
-            this.add_style_pseudo_class('active');
-            this.entry.grab_key_focus();
         } finally {
             this._busy = false;
         }
@@ -221,10 +230,13 @@ class PanelSearchBar extends PanelMenu.Button {
         try {
             const grab = this._grab;
             this._grab = null;
-            this.entry.set_text('');
-            this.remove_style_pseudo_class('active');
-            global.stage.set_key_focus(null);
-            Main.popModal(grab);
+            try {
+                this.entry.set_text('');
+                this.remove_style_pseudo_class('active');
+                global.stage.set_key_focus(null);
+            } finally {
+                Main.popModal(grab);
+            }
         } finally {
             this._busy = false;
         }
