@@ -1,49 +1,42 @@
-/* Top-bar search entry (dmenu style) */
-.jasb-panel-button {
-    -natural-hpadding: 4px;
-    -minimum-hpadding: 4px;
-}
-.jasb-panel-button:hover,
-.jasb-panel-button:active,
-.jasb-panel-button:focus {
-    background-color: transparent;
-    box-shadow: none;
+/* dmenu-style launcher in the top bar */
+.jal-bar {
+    spacing: 8px;
+    padding: 0;
 }
 
-.jasb-box {
-    spacing: 6px;
-}
-
-.jasb-label {
-    font-weight: bold;
-    font-size: 0.9em;
-    color: rgba(255,255,255,0.6);
-}
-.jasb-panel-button:active .jasb-label {
-    color: #ffffff;
-}
-
-.jasb-entry {
-    width: 14em;
+.jal-entry {
     min-height: 0;
     padding: 2px 8px;
-    border-radius: 6px;
     border: none;
-    font-size: 0.9em;
-    background-color: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    box-shadow: none;
+    font-size: 0.95em;
+    background-color: rgba(255,255,255,0.15);
     color: #ffffff;
     caret-color: #ffffff;
-    selection-background-color: rgba(255,255,255,0.3);
+    selection-background-color: rgba(255,255,255,0.35);
 }
-.jasb-entry:hover {
-    background-color: rgba(255,255,255,0.14);
-}
-.jasb-entry:focus {
-    width: 28em;
-    background-color: rgba(255,255,255,0.2);
-    box-shadow: none;
+.jal-entry:focus {
     border: none;
+    box-shadow: none;
+    background-color: rgba(255,255,255,0.18);
 }
-.jasb-entry StLabel.hint-text {
-    color: rgba(255,255,255,0.4);
+
+.jal-results {
+    spacing: 4px;
+}
+
+.jal-item {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.95em;
+    color: rgba(255,255,255,0.7);
+}
+.jal-item:hover {
+    color: #ffffff;
+}
+.jal-item:selected {
+    color: #ffffff;
+    font-weight: bold;
+    background-color: rgba(255,255,255,0.25);
 }

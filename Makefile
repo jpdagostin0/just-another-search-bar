@@ -11,7 +11,7 @@ gettext:
 	xgettext --from-code=UTF-8 --output=po/$(LANG).po *.js
 
 bundle:
-	gnome-extensions pack --force --podir=po .
+	gnome-extensions pack --force .
 
 install: uninstall bundle
 	gnome-extensions install --force $(NAME)@jpdagostin0.shell-extension.zip

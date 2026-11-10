@@ -16,86 +16,54 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
-/* Based on Google Search (https://extensions.gnome.org/extension/1057/google-search/)
+/* Originally based on Google Search
+ * (https://extensions.gnome.org/extension/1057/google-search/) via
+ * Just Another Search Bar by xelad0m.
  *
- * Fork: the search entry lives directly in the top bar (dmenu style) instead
- * of a popup menu. The shortcut grabs the keyboard and focuses the entry;
- * Enter runs the query, Escape / clicking elsewhere releases it, Tab and
- * Shift+Tab cycle the active search command, right-click opens preferences.
+ * Fork: dmenu-style application launcher living in the top bar. Hidden until
+ * the shortcut is pressed; then a plain text box fills the free space of the
+ * panel (from the end of the left section to the next section) with matching
+ * applications listed inline.
+ *
+ *   Enter          launch selected app (or run the text as a command if
+ *                  nothing matches)
+ *   Ctrl+Enter     open a new window of the selected app
+ *   Tab / Down / Ctrl+N / Right(at end)       next match
+ *   Shift+Tab / Up / Ctrl+P / Left(at start)  previous match
+ *   Esc / click elsewhere                     close
  */
 
 
 import GObject from 'gi://GObject';
 import St from 'gi://St';
-
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
-import { Extension, gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
+import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
 
 const ENTER_KEYS = [
     Clutter.KEY_Return,
     Clutter.KEY_KP_Enter,
     Clutter.KEY_ISO_Enter,
-    Clutter.KEY_RockerEnter,
-    Clutter.KEY_3270_Enter,
 ];
 
 const KEYBINDING = 'open-search-bar-key';
+const GAP = 8;            // px kept free next to neighbouring panel sections
+const MAX_RESULTS = 60;
 
 
-function quoteFix(str) {
-    return str.replaceAll("'", "%27")
-              .replaceAll("\"", "%22")
-              .replaceAll("`", "%60")
-              .replaceAll("#", "%23")
-              .replaceAll("&", "%26");
-}
-
-
-export default class SearchBarExtension extends Extension {
+export default class LauncherBarExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
-        this._createBar();
 
-        this._settings.connectObject(
-            `changed::${KEYBINDING}`, () => this._rebind(),
-            'changed::panel-box',      () => this._recreateBar(),
-            'changed::panel-index',    () => this._recreateBar(),
-            this);
+        this._bar = new LauncherBar();
+        Main.layoutManager.addTopChrome(this._bar);
 
-        this._bind();
-    }
-
-    disable() {
-        Main.wm.removeKeybinding(KEYBINDING);
-        this._settings?.disconnectObject(this);
-        this._bar?.destroy();
-        this._bar = null;
-        this._settings = null;
-    }
-
-    _createBar() {
-        this._bar = new PanelSearchBar(this._settings, () => this.openPreferences());
-        const box = this._settings.get_string('panel-box');
-        const index = this._settings.get_int('panel-index');
-        Main.panel.addToStatusArea(this.uuid, this._bar,
-            index < 0 ? 1000 : index,
-            ['left', 'center', 'right'].includes(box) ? box : 'left');
-    }
-
-    _recreateBar() {
-        this._bar?.destroy();
-        this._createBar();
-    }
-
-    _bind() {
         Main.wm.addKeybinding(
             KEYBINDING,
             this._settings,
@@ -104,207 +72,282 @@ export default class SearchBarExtension extends Extension {
             () => this._bar?.toggle());
     }
 
-    _rebind() {
+    disable() {
         Main.wm.removeKeybinding(KEYBINDING);
-        this._bind();
+        if (this._bar) {
+            this._bar.close();
+            Main.layoutManager.removeChrome(this._bar);
+            this._bar.destroy();
+            this._bar = null;
+        }
+        this._settings = null;
     }
 }
 
 
-const PanelSearchBar = GObject.registerClass(
-class PanelSearchBar extends PanelMenu.Button {
+const LauncherBar = GObject.registerClass(
+class LauncherBar extends St.BoxLayout {
 
-    _init(settings, openPrefs) {
-        // dontCreateMenu = true: the entry itself is the whole UI
-        super._init(0.0, 'Search Bar', true);
-        this.add_style_class_name('jasb-panel-button');
+    _init() {
+        super._init({
+            style_class: 'jal-bar',
+            reactive: true,
+            visible: false,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
 
-        this._settings = settings;
-        this._openPrefs = openPrefs;
         this._grab = null;
-        this._capturedId = 0;
         this._busy = false;
-
-        const box = new St.BoxLayout({
-            style_class: 'jasb-box',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        this.add_child(box);
-
-        this._label = new St.Label({
-            style_class: 'jasb-label',
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        box.add_child(this._label);
+        this._apps = [];
+        this._sel = 0;
+        this._appSys = Shell.AppSystem.get_default();
 
         this.entry = new St.Entry({
-            style_class: 'jasb-entry',
+            style_class: 'jal-entry',
             can_focus: true,
-            track_hover: true,
             y_align: Clutter.ActorAlign.CENTER,
         });
-        box.add_child(this.entry);
+        this.add_child(this.entry);
+
+        this._results = new St.BoxLayout({
+            style_class: 'jal-results',
+            x_expand: true,
+            clip_to_allocation: true,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        this.add_child(this._results);
 
         const text = this.entry.clutter_text;
         text.connect('key-press-event', this._onKeyPress.bind(this));
-        // Clicking into the text gives it stage focus: turn that into a grab
-        text.connect('key-focus-in', () => {
-            if (!this._grab && !this._busy) this.activate();
+        text.connect('text-changed', () => {
+            this._sel = 0;
+            this._refresh();
         });
         text.connect('key-focus-out', () => {
-            if (this._grab && !this._busy) this.deactivate();
+            if (this._grab && !this._busy) this.close();
         });
 
-        // Right-click anywhere on the bar opens preferences,
-        // left-click on the label / padding focuses the entry.
+        // clicks outside the bar while it holds the grab close it,
+        // clicking a result launches it
         this.connect('captured-event', (_a, event) => {
-            if (event.type() !== Clutter.EventType.BUTTON_PRESS)
+            const type = event.type();
+            if (type !== Clutter.EventType.BUTTON_PRESS &&
+                type !== Clutter.EventType.TOUCH_BEGIN)
                 return Clutter.EVENT_PROPAGATE;
             const target = global.stage.get_event_actor(event);
-            const inside = target && this.contains(target);
-            if (this._grab && !inside) {      // click outside while grabbed
-                this.deactivate();
+            if (target?._jalIndex !== undefined) {
+                this._sel = target._jalIndex;
+                this._launch(false);
                 return Clutter.EVENT_STOP;
             }
-            if (inside && event.get_button() === Clutter.BUTTON_SECONDARY) {
-                this.deactivate();
-                this._openPrefs();
-                return Clutter.EVENT_STOP;
-            }
-            if (inside && !this._grab && !this.entry.contains(target)) {
-                this.activate();
+            if (!target || !this.contains(target) || target === this) {
+                this.close();
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
         });
 
-        this._settings.connectObject(
-            'changed::command-id',    () => this._updateLabel(),
-            'changed::command-names', () => this._updateLabel(),
-            this);
-        this._updateLabel();
-
-        this.connect('destroy', () => {
-            this.deactivate();
-            this._settings.disconnectObject(this);
-        });
+        this.connect('destroy', () => this.close());
     }
 
-    // ── state ────────────────────────────────────────────
+    // ── open / close ─────────────────────────────────────
     toggle() {
-        if (this._grab) this.deactivate();
-        else this.activate();
+        if (this._grab) this.close();
+        else this.open();
     }
 
-    activate() {
+    open() {
         if (this._grab || this._busy) return;
         this._busy = true;
         try {
-            // clear first so popModal() never restores focus into the entry
+            this._place();
+            this.show();
             global.stage.set_key_focus(null);
             const grab = Main.pushModal(this, { actionMode: Shell.ActionMode.POPUP });
             try {
-                // Clutter.Grab.get_seat_state() was removed in GNOME 50
-                if (typeof grab.get_seat_state === 'function' &&
-                    (grab.get_seat_state() & Clutter.GrabState.KEYBOARD) === 0) {
-                    Main.popModal(grab);
-                    return;
-                }
                 this._grab = grab;
-                this.add_style_pseudo_class('active');
+                this.entry.set_text('');
+                this._sel = 0;
+                this._refresh();
                 this.entry.grab_key_focus();
             } catch (e) {
                 // never leave the shell stuck behind a dangling modal grab
                 this._grab = null;
                 Main.popModal(grab);
-                logError(e, '[ Search Bar ] activate failed');
+                this.hide();
+                logError(e, '[ Launcher Bar ] open failed');
             }
         } finally {
             this._busy = false;
         }
     }
 
-    deactivate() {
+    close() {
         if (!this._grab || this._busy) return;
         this._busy = true;
+        const grab = this._grab;
+        this._grab = null;
         try {
-            const grab = this._grab;
-            this._grab = null;
-            try {
-                this.entry.set_text('');
-                this.remove_style_pseudo_class('active');
-                global.stage.set_key_focus(null);
-            } finally {
-                Main.popModal(grab);
-            }
+            this.hide();
+            this.entry.set_text('');
+            this._results.destroy_all_children();
+            global.stage.set_key_focus(null);
         } finally {
+            Main.popModal(grab);
             this._busy = false;
         }
     }
 
-    // ── events ───────────────────────────────────────────
-    _onKeyPress(_actor, event) {
-        const symbol = event.get_key_symbol();
+    // Fill the free panel area: end of the left section up to the centre
+    // section (if it has visible content) or else the right section.
+    _place() {
+        const panel = Main.panel;
+        const [px, py] = panel.get_transformed_position();
+        const left = panel._leftBox.get_allocation_box();
+        const center = panel._centerBox.get_allocation_box();
+        const right = panel._rightBox.get_allocation_box();
+        const centerUsed = panel._centerBox.get_children()
+            .some(c => c.visible && c.width > 0);
 
-        if (symbol === Clutter.KEY_Escape) {
-            this.deactivate();
-            return Clutter.EVENT_STOP;
+        const x1 = left.x2 + GAP;
+        const x2 = (centerUsed ? center.x1 : right.x1) - GAP;
+        const width = Math.max(200, Math.floor(x2 - x1));
+
+        this.set_position(Math.floor(px + x1), Math.floor(py));
+        this.set_size(width, panel.height);
+        this.entry.width = Math.max(160, Math.min(400, Math.floor(width * 0.25)));
+        this._resultsWidth = width - this.entry.width - 2 * GAP;
+    }
+
+    // ── search ───────────────────────────────────────────
+    _search(query) {
+        const usage = Shell.AppUsage.get_default();
+        const ok = app => app && app.get_app_info()?.should_show();
+
+        if (!query.trim())
+            return usage.get_most_used().filter(ok).slice(0, MAX_RESULTS);
+
+        const seen = new Set();
+        const out = [];
+        for (const group of Shell.AppSystem.search(query)) {
+            group.sort((a, b) => usage.compare(a, b));
+            for (const id of group) {
+                if (seen.has(id)) continue;
+                seen.add(id);
+                const app = this._appSys.lookup_app(id);
+                if (ok(app)) out.push(app);
+                if (out.length >= MAX_RESULTS) return out;
+            }
         }
-
-        if (symbol === Clutter.KEY_Tab || symbol === Clutter.KEY_ISO_Left_Tab) {
-            const back = symbol === Clutter.KEY_ISO_Left_Tab ||
-                (event.get_state() & Clutter.ModifierType.SHIFT_MASK) !== 0;
-            this._cycleCommand(back ? -1 : 1);
-            return Clutter.EVENT_STOP;
-        }
-
-        if (ENTER_KEYS.includes(symbol)) {
-            const query = this.entry.get_text();
-            this.deactivate();
-            if (query.trim().length > 0)
-                this._goSearch(query);
-            return Clutter.EVENT_STOP;
-        }
-
-        return Clutter.EVENT_PROPAGATE;
+        return out;
     }
 
-    // ── commands ─────────────────────────────────────────
-    _cycleCommand(step) {
-        const n = this._settings.get_strv('command-names').length;
-        if (n === 0) return;
-        const cur = this._settings.get_int('command-id');
-        this._settings.set_int('command-id', ((cur + step) % n + n) % n);
+    _refresh() {
+        this._apps = this._search(this.entry.get_text());
+        if (this._sel >= this._apps.length) this._sel = 0;
+        this._render();
     }
 
-    _updateLabel() {
-        const names = this._settings.get_strv('command-names');
-        const name = names[this._settings.get_int('command-id')] ?? '';
-        this._label.set_text(name);
-        this.entry.hint_text = name ? _('search') + '…' : '';
+    // dmenu-style paging: only the page containing the selection is shown
+    _render() {
+        this._results.destroy_all_children();
+        if (!this._apps.length) return;
+
+        const labels = this._apps.map((app, i) => {
+            const l = new St.Label({
+                text: app.get_name(),
+                style_class: 'jal-item',
+                reactive: true,
+                track_hover: true,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            l._jalIndex = i;
+            this._results.add_child(l);
+            return l;
+        });
+
+        const spacing = 4;
+        const avail = this._resultsWidth ?? this._results.width;
+        let pageStart = 0, used = 0;
+        const pageOf = [];
+        labels.forEach((l, i) => {
+            const w = l.get_preferred_width(-1)[1] + spacing;
+            if (i > pageStart && used + w > avail) {
+                pageStart = i;
+                used = 0;
+            }
+            used += w;
+            pageOf.push(pageStart);
+        });
+
+        const page = pageOf[this._sel];
+        labels.forEach((l, i) => {
+            l.visible = pageOf[i] === page;
+            if (i === this._sel) l.add_style_pseudo_class('selected');
+        });
     }
 
-    _compileCommand(template, wildcard, delimiter, query) {
-        query = quoteFix(String(query).trim().replace(/ /g, String(delimiter)));
-        return (wildcard != '') ? String(template).replace(String(wildcard), query)
-                                : String(template) + ' ' + query;
+    _move(step) {
+        const n = this._apps.length;
+        if (!n) return;
+        this._sel = ((this._sel + step) % n + n) % n;
+        this._render();
     }
 
-    _goSearch(query) {
-        const cmdId = this._settings.get_int('command-id');
-        const cmdName = this._settings.get_strv('command-names')[cmdId];
-        const template = this._settings.get_strv('command-templates')[cmdId];
-        const wildcard = this._settings.get_strv('command-wildcards')[cmdId];
-        const delimiter = this._settings.get_strv('command-delimiters')[cmdId];
+    _launch(newWindow) {
+        const app = this._apps[this._sel];
+        const query = this.entry.get_text().trim();
+        this.close();
 
-        if (template === undefined) return;
-
-        const command = this._compileCommand(template, wildcard ?? '', delimiter ?? '+', query);
         try {
-            GLib.spawn_command_line_async(command);
+            if (app) {
+                if (newWindow && app.can_open_new_window())
+                    app.open_new_window(-1);
+                else
+                    app.activate();
+                Main.overview.hide();
+            } else if (query) {
+                // dmenu_run fallback: run the text as a command
+                GLib.spawn_command_line_async(query);
+            }
         } catch (e) {
-            logError(e, `[ Search Bar ] [Error spawning command]: ${command}`);
-            Main.notify(_("Can't open ") + `${cmdName} (${query})`);
+            logError(e, '[ Launcher Bar ] launch failed');
+            Main.notify(`Can't launch ${app ? app.get_name() : query}`);
         }
+    }
+
+    // ── keys ─────────────────────────────────────────────
+    _onKeyPress(_actor, event) {
+        const sym = event.get_key_symbol();
+        const state = event.get_state();
+        const ctrl = (state & Clutter.ModifierType.CONTROL_MASK) !== 0;
+        const shift = (state & Clutter.ModifierType.SHIFT_MASK) !== 0;
+        const text = this.entry.clutter_text;
+        const pos = text.get_cursor_position();          // -1 = end
+        const atEnd = pos === -1 || pos === text.get_text().length;
+        const atStart = pos === 0 || (pos === -1 && text.get_text().length === 0);
+
+        if (sym === Clutter.KEY_Escape) {
+            this.close();
+            return Clutter.EVENT_STOP;
+        }
+        if (ENTER_KEYS.includes(sym)) {
+            this._launch(ctrl);
+            return Clutter.EVENT_STOP;
+        }
+        if ((sym === Clutter.KEY_Tab && !shift) || sym === Clutter.KEY_Down ||
+            (ctrl && (sym === Clutter.KEY_n || sym === Clutter.KEY_j)) ||
+            (sym === Clutter.KEY_Right && atEnd)) {
+            this._move(1);
+            return Clutter.EVENT_STOP;
+        }
+        if (sym === Clutter.KEY_ISO_Left_Tab || (sym === Clutter.KEY_Tab && shift) ||
+            sym === Clutter.KEY_Up ||
+            (ctrl && (sym === Clutter.KEY_p || sym === Clutter.KEY_k)) ||
+            (sym === Clutter.KEY_Left && atStart)) {
+            this._move(-1);
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
     }
 });

@@ -1,51 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<schemalist gettext-domain="just-another-search-bar">
-
-    <schema id="org.gnome.shell.extensions.just-another-search-bar" 
+<schemalist>
+    <schema id="org.gnome.shell.extensions.just-another-search-bar"
             path="/org/gnome/shell/extensions/just-another-search-bar/">
-
         <key type="as" name="open-search-bar-key">
             <default><![CDATA[['<Alt>p']]]></default>
-            <summary>Open search bar key</summary>
+            <summary>Shortcut that opens the launcher</summary>
         </key>
-
-        <key type="s" name="panel-box">
-            <choices><choice value="left"/><choice value="center"/><choice value="right"/></choices>
-            <default>'left'</default>
-            <summary>Top bar section the search entry is placed in</summary>
-        </key>
-
-        <key type="i" name="panel-index">
-            <default>-1</default>
-            <summary>Position inside the section (-1 = append at the end)</summary>
-        </key>
-
-        <key type="i" name='command-id'>
-            <default>0</default>
-            <summary>Store current default command number</summary>
-        </key>
-
-        <key type="as" name="command-names">
-            <default>['google', 'yandex', 'baidu', 'bing', 'duckduckgo', 'wiki', 'recoll']</default>
-            <summary>Store the commands names</summary>
-        </key>
-
-        <key type="as" name="command-templates">
-            <default>['xdg-open https://www.google.com/search?q=#','xdg-open https://yandex.ru/search/?text=#','xdg-open https://www.baidu.com/s?wd=#','xdg-open https://www.bing.com/search?q=#','xdg-open https://duckduckgo.com/?q=#','xdg-open https://wikipedia.org/w/index.php?search=#','recoll -q #']</default>
-            <summary>Store the command line templates</summary>
-        </key>
-
-        <key type="as" name="command-wildcards">
-            <default>['#', '#', '#', '#','#','#','#']</default>
-            <summary>Store the commands wildcards</summary>
-        </key>
-
-        <key type="as" name="command-delimiters">
-            <default>['+', '+', '%20', '+','+','+',' ']</default>
-            <summary>Store the commands delimiters</summary>
-        </key>
-        
     </schema>
-
 </schemalist>

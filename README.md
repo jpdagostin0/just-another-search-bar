@@ -1,55 +1,26 @@
-# Just Another Search Bar
+# Launcher Bar
 
-![screenshot](./img/screenshot.png)
+dmenu-style application launcher embedded in the GNOME top bar (fork of
+[Just Another Search Bar](https://github.com/xelad0m/just-another-search-bar)).
 
-Simple GNOME Shell extension for performing search queries from desktop. Some search engines are added as examples, you can add your own, including local search tools with suitable CLI.
+Hidden until you press `Alt+P`. A plain text box then fills the free space of
+the top bar (from the end of the left section to the next section) and matching
+applications are listed inline.
 
-It can also be used as a launcher for any user commands and scripts that require additional text input ([notification example](./img/prefs3.png)).
+| Key | Action |
+|---|---|
+| `Enter` | launch selected app (runs the text as a command if nothing matches) |
+| `Ctrl+Enter` | new window of the selected app |
+| `Tab` / `Down` / `Ctrl+N` / `Right` at end | next match |
+| `Shift+Tab` / `Up` / `Ctrl+P` / `Left` at start | previous match |
+| `Esc` / click elsewhere | close |
 
-To **open** click on the search icon on the menu bar or press `Ctrl+Alt+F`
+Change the shortcut:
 
-## Example
+    gsettings --schemadir ~/.local/share/gnome-shell/extensions/just-another-search-bar@jpdagostin0/schemas \
+      set org.gnome.shell.extensions.just-another-search-bar open-search-bar-key "['<Alt>p']"
 
-Open preferences
+Install: `make install`, then log out and back in (Wayland) and enable
+`just-another-search-bar@jpdagostin0`.
 
-![screenshot](./img/prefs1.png)
-
-To **remove** an entry:
-- select entry in preferences and click `-` button.
-
-To **add** an entry you can:
-1. Click `+` button in preferences
-2. Fill in the fields. For example, to add `duckduckgo`:
-    - Name: `duckduckgo`
-    - Command: `xdg-open https://duckduckgo.com/?q=#`
-    - Wildcard: `#`
-    - Query delimiter: `+`
-3. Click `Save` button
-
-![screenshot](./img/prefs2.png)
-
-Or you can select any existing entry, expand row, edit entry (including the field "Name"), click `Save` button. In this case existing entry will not be changed and new entry will be added.
-
-To **change** an    entry:
-- select existing entry, expand row, change fields (except the field "Name"), click `Save` button
-
-## Install
-
-[<img src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true" alt="Get it on GNOME Extensions" height="100" align="middle">](https://extensions.gnome.org/extension/5522/just-another-search-bar/)
-
-
-## About
-
-Tested on GNOME Shell 42, 43, 44, 45, 46, 47, 48, 49, 50
-
-Based on [Google Search](https://extensions.gnome.org/extension/1057/google-search/) extension
-
-## Fork: top-bar mode
-
-This fork puts the search entry directly in the top bar (dmenu style) instead of a popup menu.
-
-- `Alt+P` (configurable) grabs the keyboard and focuses the entry
-- `Enter` runs the query, `Esc` or clicking elsewhere cancels
-- `Tab` / `Shift+Tab` cycle the active search command (shown next to the entry)
-- Right-click the bar to open preferences
-- Placement: `gsettings set org.gnome.shell.extensions.just-another-search-bar panel-box left|center|right` and `panel-index` (-1 = append)
+License: GPL-2.0-or-later.
