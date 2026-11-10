@@ -6,5 +6,10 @@
             <default><![CDATA[['<Alt>p']]]></default>
             <summary>Shortcut that opens the launcher</summary>
         </key>
+        <key type="b" name="hide-workspace-popup">
+            <default>true</default>
+            <summary>Hide the workspace switcher popup</summary>
+            <description>Suppress the indicator shown at the bottom of the screen when switching workspaces.</description>
+        </key>
     </schema>
 </schemalist>

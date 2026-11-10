@@ -42,6 +42,7 @@ import Shell from 'gi://Shell';
 import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as WorkspaceSwitcherPopup from 'resource:///org/gnome/shell/ui/workspaceSwitcherPopup.js';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -70,9 +71,34 @@ export default class LauncherBarExtension extends Extension {
             Meta.KeyBindingFlags.NONE,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             () => this._bar?.toggle());
+
+        this._settings.connectObject('changed::hide-workspace-popup',
+            () => this._syncWorkspacePopup(), this);
+        this._syncWorkspacePopup();
+    }
+
+    // Suppress the OSD shown at the bottom of the screen when switching
+    // workspaces. The popup is destroyed as soon as the shell asks it to
+    // display, which keeps WindowManager's bookkeeping (workspace tracker
+    // block/unblock) balanced.
+    _syncWorkspacePopup() {
+        const proto = WorkspaceSwitcherPopup.WorkspaceSwitcherPopup.prototype;
+        const hide = this._settings?.get_boolean('hide-workspace-popup');
+        if (hide && !this._origPopupDisplay) {
+            this._origPopupDisplay = proto.display;
+            proto.display = function () { this.destroy(); };
+        } else if (!hide && this._origPopupDisplay) {
+            proto.display = this._origPopupDisplay;
+            this._origPopupDisplay = null;
+        }
     }
 
     disable() {
+        if (this._origPopupDisplay) {
+            WorkspaceSwitcherPopup.WorkspaceSwitcherPopup.prototype.display = this._origPopupDisplay;
+            this._origPopupDisplay = null;
+        }
+        this._settings?.disconnectObject(this);
         Main.wm.removeKeybinding(KEYBINDING);
         if (this._bar) {
             this._bar.close();

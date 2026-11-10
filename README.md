@@ -15,6 +15,10 @@ applications are listed inline.
 | `Shift+Tab` / `Up` / `Ctrl+P` / `Left` at start | previous match |
 | `Esc` / click elsewhere | close |
 
+It also hides the workspace switcher popup (the indicator at the bottom of the
+screen when changing workspaces); toggle with the `hide-workspace-popup` key or
+in the extension settings.
+
 Change the shortcut:
 
     gsettings --schemadir ~/.local/share/gnome-shell/extensions/just-another-search-bar@jpdagostin0/schemas \
