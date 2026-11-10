@@ -2,7 +2,6 @@
 
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import Gio from 'gi://Gio';
 
 import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
@@ -34,15 +33,6 @@ export default class LauncherBarPreferences extends ExtensionPreferences {
 
         group.add(row);
         page.add(group);
-
-        const misc = new Adw.PreferencesGroup({ title: 'Desktop' });
-        const sw = new Adw.SwitchRow({
-            title: 'Hide workspace switcher popup',
-            subtitle: 'No indicator at the bottom of the screen when switching workspaces',
-        });
-        settings.bind('hide-workspace-popup', sw, 'active', Gio.SettingsBindFlags.DEFAULT);
-        misc.add(sw);
-        page.add(misc);
         window.add(page);
     }
 }
