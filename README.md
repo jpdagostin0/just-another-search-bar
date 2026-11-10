@@ -43,3 +43,13 @@ To **change** an    entry:
 Tested on GNOME Shell 42, 43, 44, 45, 46, 47, 48, 49, 50
 
 Based on [Google Search](https://extensions.gnome.org/extension/1057/google-search/) extension
+
+## Fork: top-bar mode
+
+This fork puts the search entry directly in the top bar (dmenu style) instead of a popup menu.
+
+- `Alt+P` (configurable) grabs the keyboard and focuses the entry
+- `Enter` runs the query, `Esc` or clicking elsewhere cancels
+- `Tab` / `Shift+Tab` cycle the active search command (shown next to the entry)
+- Right-click the bar to open preferences
+- Placement: `gsettings set org.gnome.shell.extensions.just-another-search-bar panel-box left|center|right` and `panel-index` (-1 = append)

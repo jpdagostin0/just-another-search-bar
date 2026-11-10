@@ -1,8 +1,49 @@
-/* Add your custom extension styling here */
-.search-bar-menu {
-    min-width: 20em;
+/* Top-bar search entry (dmenu style) */
+.jasb-panel-button {
+    -natural-hpadding: 4px;
+    -minimum-hpadding: 4px;
+}
+.jasb-panel-button:hover,
+.jasb-panel-button:active,
+.jasb-panel-button:focus {
+    background-color: transparent;
+    box-shadow: none;
 }
 
-.search-bar:focus {
-    border-color: transparent;
+.jasb-box {
+    spacing: 6px;
+}
+
+.jasb-label {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: rgba(255,255,255,0.6);
+}
+.jasb-panel-button:active .jasb-label {
+    color: #ffffff;
+}
+
+.jasb-entry {
+    width: 14em;
+    min-height: 0;
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.9em;
+    background-color: rgba(255,255,255,0.08);
+    color: #ffffff;
+    caret-color: #ffffff;
+    selection-background-color: rgba(255,255,255,0.3);
+}
+.jasb-entry:hover {
+    background-color: rgba(255,255,255,0.14);
+}
+.jasb-entry:focus {
+    width: 28em;
+    background-color: rgba(255,255,255,0.2);
+    box-shadow: none;
+    border: none;
+}
+.jasb-entry StLabel.hint-text {
+    color: rgba(255,255,255,0.4);
 }

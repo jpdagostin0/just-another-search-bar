@@ -6,8 +6,19 @@
             path="/org/gnome/shell/extensions/just-another-search-bar/">
 
         <key type="as" name="open-search-bar-key">
-            <default><![CDATA[['<Control><Alt>f']]]></default>
+            <default><![CDATA[['<Alt>p']]]></default>
             <summary>Open search bar key</summary>
+        </key>
+
+        <key type="s" name="panel-box">
+            <choices><choice value="left"/><choice value="center"/><choice value="right"/></choices>
+            <default>'left'</default>
+            <summary>Top bar section the search entry is placed in</summary>
+        </key>
+
+        <key type="i" name="panel-index">
+            <default>-1</default>
+            <summary>Position inside the section (-1 = append at the end)</summary>
         </key>
 
         <key type="i" name='command-id'>

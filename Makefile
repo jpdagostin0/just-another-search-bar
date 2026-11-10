@@ -14,9 +14,9 @@ bundle:
 	gnome-extensions pack --force --podir=po .
 
 install: uninstall bundle
-	gnome-extensions install --force $(NAME)@xelad0m.shell-extension.zip
+	gnome-extensions install --force $(NAME)@jpdagostin0.shell-extension.zip
 
 uninstall:
-	gnome-extensions uninstall $(NAME)@xelad0m || (echo "not installed")
+	gnome-extensions uninstall $(NAME)@jpdagostin0 || (echo "not installed")
 
 .PHONY: all schemas gettext bundle install uninstall 

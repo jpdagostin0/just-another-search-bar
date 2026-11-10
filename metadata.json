@@ -1,9 +1,9 @@
 {
   "shell-version": ["45","46","47","48","49","50"],
-  "name": "Just Another Search Bar",
+  "name": "Just Another Search Bar (top bar)",
   "description": "Simple GNOME Shell extension for performing search queries\nfrom desktop. Some search engines are added as examples, you can add your own,\nincluding local search tools with suitable CLI",
-  "uuid": "just-another-search-bar@xelad0m",
+  "uuid": "just-another-search-bar@jpdagostin0",
   "gettext-domain": "just-another-search-bar",
   "settings-schema": "org.gnome.shell.extensions.just-another-search-bar", 
-  "url": "https://github.com/xelad0m/just-another-search-bar"
+  "url": "https://github.com/jpdagostin0/just-another-search-bar"
 }
